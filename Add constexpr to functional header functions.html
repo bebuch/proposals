@@ -63,6 +63,16 @@ blockquote.std h3{
   font-weight:bold;
 }
 
+blockquote.std h4{
+  font-size:1.1em;
+  font-weight:bold;
+}
+
+blockquote.std h5{
+  font-size:1.05em;
+  font-weight:bold;
+}
+
 span.para{
   float:left;
   position: relative;
@@ -84,7 +94,7 @@ td { text-align: left; vertical-align: top;
   padding-right: 0.4em; border: none; }
 </style>
 
-<title>Add constexpr to std::invoke and std::reference_wrapper</title>
+<title>Add constexpr to functional header functions</title>
 </head>
 
 <body>
@@ -104,18 +114,17 @@ td { text-align: left; vertical-align: top;
   </tr>
 </tbody></table>
 
-<h1><a name="title">Add <code>constexpr</code> to <code>std::invoke</code> and <code>std::reference_wrapper</code></a></h1>
+<h1><a name="title">Add <code>constexpr</code> to functional header functions</a></h1>
 
 <h2><a name="intro">1. Introduction</a></h2>
 
-<p>In this paper wording changes are proposed to add <code>constexpr</code> to the function <code>std::invoke</code> and all member functions of <code>std::reference_wrapper</code>
-   and it's helper functions.</p>
+<p>In this paper wording changes are proposed to add <code>constexpr</code> to the function <code>std::invoke</code>, the function <code>std::not_fn</code>, all member functions of <code>std::reference_wrapper</code> and to it's helper functions.</p>
 
 <h2><a name="motivation">2. Motivation and Scope</a></h2>
 
 <p>Without being <code>constexpr</code> itself, the functions cannot be used in <code>constexpr</code> context. This results in unnecessarily reimplementations by users, if they want to use these basic tools in a <code>constexpr</code> context.</p>
 
-<h2><a name="wording.minimal">3. Proposed Wording to <code>std::invoke</code></a></h2>
+<h2><a name="wording.invoke">3. Proposed Wording to <code>std::invoke</code></a></h2>
 
 <p>The proposed wording changes refer to <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf">N4606</a> (C++ Working Draft, 2016-07-12).</p>
 
@@ -131,7 +140,7 @@ template &lt;class F, class... Args&gt;
   <ins>constexpr </ins>result_of_t&lt;F&amp;&amp;(Args&amp;&amp;...)&gt; invoke(F&amp;&amp; f, Args&amp;&amp;... args);</pre>
 </blockquote>
 
-<h2><a name="wording.minimal">4. Proposed Wording to <code>std::reference_wrapper</code></a></h2>
+<h2><a name="wording.reference_wrapper">4. Proposed Wording to <code>std::reference_wrapper</code></a></h2>
 
 <p>The proposed wording changes refer to <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf">N4606</a> (C++ Working Draft, 2016-07-12).</p>
 
@@ -208,7 +217,71 @@ namespace std {
 <p><span class="para">4</span><dl class="attribute"><dt>Returns:</dt> <dd><code>cref(t.get())</code></dd></dl></p>
 </blockquote>
 
-<h2><a name="literature">5. References</a></h2>
+<h2><a name="wording.not_fn">5. Proposed Wording to <code>std::not_fn</code></a></h2>
+
+<p>The proposed wording changes refer to <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf">N4606</a> (C++ Working Draft, 2016-07-12).</p>
+
+<blockquote class="std">
+  <h3>20.14 Function objects [function.objects]</h3>
+  <p><span class="para">2</span><b>Header &lt;functional&gt; synopsis</b></p>
+  <pre>
+// 20.14.9, function template not_fn:
+template &lt;class F&gt; <ins>constexpr </ins><i>unspecified</i> not_fn(F&amp;&amp; f);
+</pre>
+  <h4>20.14.9 Function template not_fn [func.not_fn]</h4>
+  <pre>template &lt;class F&gt; <ins>constexpr </ins>unspecified not_fn(F&amp;&amp; f);</pre>
+  <p><span class="para">1</span><dl class="attribute"><dt>Effects:</dt> <dd><p>Equivalent to <code>return <i>call_wrapper</i>(std::forward&lt;F&gt;(f));</code> where <code><i>call_wrapper</i></code> is an exposition only class defined as follows:</p>
+  <pre>  class <i>call_wrapper</i>
+  {
+    using FD = decay_t&lt;F&gt;;
+    <ins>constexpr </ins>explicit <i>call_wrapper</i>(F&amp;&amp; f);
+
+  public:
+    <ins>constexpr </ins><i>call_wrapper</i> (<i>call_wrapper</i> &amp;&amp;) = default;
+    <ins>constexpr </ins><i>call_wrapper</i> (<i>call_wrapper</i> const&amp;) = default;
+
+    template&lt;class... Args&gt;
+      <ins>constexpr </ins>auto operator()(Args&amp;&amp;...) &amp;
+        -&gt; decltype(!declval&lt;result_of_t&lt;FD&amp;(Args...)&gt;&gt;());
+
+    template&lt;class... Args&gt;
+      <ins>constexpr </ins>auto operator()(Args&amp;&amp;...) const&amp;
+        -&gt; decltype(!declval&lt;result_of_t&lt;FD const&amp;(Args...)&gt;&gt;());
+
+    template&lt;class... Args&gt;
+      <ins>constexpr </ins>auto operator()(Args&amp;&amp;...) &amp;&amp;
+        -&gt; decltype(!declval&lt;result_of_t&lt;FD(Args...)&gt;&gt;());
+
+    template&lt;class... Args&gt;
+      <ins>constexpr </ins>auto operator()(Args&amp;&amp;...) const&amp;&amp;
+        -&gt; decltype(!declval&lt;result_of_t&lt;FD const(Args...)&gt;&gt;());
+
+  private:
+    FD fd;
+  };</pre></dd></dl>
+<pre><ins>constexpr </ins>explicit <i>call_wrapper</i>(F&amp;&amp; f);</pre>
+<p><span class="para">2</span><dl class="attribute"><dt>Requires:</dt> <dd><code>FD</code> shall satisfy the requirements of <code>MoveConstructible</code>. <code>is_constructible_v&lt;FD, F&gt;</code> shall be <code>true</code>. <code>fd</code> shall be a callable object (20.14.1).</dd></dl></p>
+<p><span class="para">3</span><dl class="attribute"><dt>Effects:</dt> <dd>Initializes fd from <code>std::forward&lt;F&gt;(f)</code>.</dd></dl></p>
+<p><span class="para">4</span><dl class="attribute"><dt>Throws:</dt> <dd>Any exception thrown by construction of <code>fd</code>.</dd></dl></p>
+<pre>template&lt;class... Args&gt;
+  <ins>constexpr </ins>auto operator()(Args&amp;&amp;... args) &amp;
+    -&gt; decltype(!declval&lt;result_of_t&lt;FD&amp;(Args...)&gt;&gt;());</pre>
+<pre>template&lt;class... Args&gt;
+  <ins>constexpr </ins>auto operator()(Args&amp;&amp;... args) const&amp;
+    -&gt; decltype(!declval&lt;result_of_t&lt;FD const&amp;(Args...)&gt;&gt;());</pre>
+<p><span class="para">5</span><dl class="attribute"><dt>Effects:</dt> <dd>Equivalent to: <code>return !<i>INVOKE</i>(fd, std::forward&lt;Args&gt;(args)...);</code> (20.14.2).</dd></dl></p>
+<pre>template&lt;class... Args&gt;
+  <ins>constexpr </ins>auto operator()(Args&amp;&amp;... args) &amp;&amp;
+    -&gt; decltype(!declval&lt;result_of_t&lt;FD(Args...)&gt;&gt;());</pre>
+<pre>template&lt;class... Args&gt;
+  <ins>constexpr </ins>auto operator()(Args&amp;&amp;... args) const&amp;&amp;
+    -&gt; decltype(!declval&lt;result_of_t&lt;FD const(Args...)&gt;&gt;());</pre>
+<p><span class="para">6</span><dl class="attribute"><dt>Effects:</dt> <dd>Equivalent to: <code>return !<i>INVOKE</i>(std::move(fd), std::forward&lt;Args&gt;(args)...);</code> (20.14.2).</dd></dl></p>
+
+</pre>
+</blockquote>
+
+<h2><a name="literature">6. References</a></h2>
 
 <ol>
 <li>Richard Smith, "Working Draft, Standard for Programming Language C++" (N4606, <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf">http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf</a>)</li>
