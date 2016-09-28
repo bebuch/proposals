@@ -1,0 +1,217 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<style type="text/css">
+pre {margin-left:0; }
+pre > i {
+  font-family: "OCR A Extended", "Consolas", "Lucida Console", monospace;
+  font-style:italic;
+}
+code > i {
+  font-family: "OCR A Extended", "Consolas", "Lucida Console", monospace;
+  font-style:italic;
+}
+pre > em {
+  font-family: "OCR A Extended", "Consolas", "Lucida Console", monospace;
+  font-style:italic;
+}
+code > em {
+  font-family: "OCR A Extended", "Consolas", "Lucida Console", monospace;
+  font-style:italic;
+}
+body { color: #000000; background-color: #FFFFFF; }
+del { text-decoration: line-through; color: #8B0040; }
+ins { text-decoration: none; background-color: #00FF00; }
+
+p.example { margin-left: 2em; }
+pre.example { margin-left: 0em; }
+div.example { margin-left: 2em; }
+
+code.extract { background-color: #F5F6A2; }
+pre.extract { margin-left: 0em; background-color: #F5F6A2;
+  border: 1px solid #E1E28E; }
+
+p.function { }
+.attribute { margin-left: 2em; }
+.attribute dt { float: left; font-style: italic;
+  padding-right: 1ex; }
+.attribute dd { margin-left: 0em; }
+
+blockquote.std { color: #000000; background-color: #F1F1F1;
+  border: 1px solid #D1D1D1;
+  padding-left: 2.5em; padding-right: 0.5em; }
+blockquote.stddel { text-decoration: line-through;
+  color: #000000; background-color: #FFEBFF;
+  border: 1px solid #ECD7EC;
+  padding-left: 0.5em;padding-right: 0.5em; }
+
+blockquote.stdins { text-decoration: underline;
+  color: #000000; background-color: #C8FFC8;
+  border: 1px solid #B3EBB3; padding: 0.5em; }
+
+p.comment {
+  max-width: 80%;
+  margin: 1ex;
+  border: 1px dashed #888;
+  padding: 1ex;
+  background-color: #ffffe6;
+}
+
+blockquote.std h3{
+  font-size:1.2em;
+  font-weight:bold;
+}
+
+span.para{
+  float:left;
+  position: relative;
+  left: -2em;
+  margin-right: -2em;
+  font-size:0.8em;
+}
+
+table.header { border: 0px; border-spacing: 0;
+  margin-left: 0px; font-style: normal; }
+
+table { border: 1px solid black; border-spacing: 0px;
+  margin-left: auto; margin-right: auto; }
+th { text-align: left; vertical-align: top;
+  padding-left: 0.4em; border: none;
+  padding-right: 0.4em; border: none; }
+td { text-align: left; vertical-align: top;
+  padding-left: 0.4em; border: none;
+  padding-right: 0.4em; border: none; }
+</style>
+
+<title>Add constexpr to std::invoke and std::reference_wrapper</title>
+</head>
+
+<body>
+
+<table class="header"><tbody>
+  <tr>
+    <th>Document number:&nbsp;&nbsp;</th><th> </th><td>P####R0</td>
+  </tr>
+  <tr>
+    <th>Date:&nbsp;&nbsp;</th><th> </th><td>2016-09-28</td>
+  </tr>
+  <tr>
+    <th>Project:&nbsp;&nbsp;</th><th> </th><td>Programming Language C++, Library Evolution Working Group</td>
+  </tr>
+  <tr>
+    <th>Reply-to:&nbsp;&nbsp;</th><th> </th><td>Benjamin Buch (<a href="mailto:benni.buch@gmail.com">benni.buch@gmail.com</a>)</td>
+  </tr>
+</tbody></table>
+
+<h1><a name="title">Add <code>constexpr</code> to <code>std::invoke</code> and <code>std::reference_wrapper</code></a></h1>
+
+<h2><a name="intro">1. Introduction</a></h2>
+
+<p>In this paper wording changes are proposed to add <code>constexpr</code> to the function <code>std::invoke</code> and all member functions of <code>std::reference_wrapper</code>
+   and it's helper functions.</p>
+
+<h2><a name="motivation">2. Motivation and Scope</a></h2>
+
+<p>Without being <code>constexpr</code> itself, the functions cannot be used in <code>constexpr</code> context. This results in unnecessarily reimplementations by users, if they want to use these basic tools in a <code>constexpr</code> context.</p>
+
+<h2><a name="wording.minimal">3. Proposed Wording to <code>std::invoke</code></a></h2>
+
+<p>The proposed wording changes refer to <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf">N4606</a> (C++ Working Draft, 2016-07-12).</p>
+
+<blockquote class="std">
+  <h3>20.14 Function objects [function.objects]</h3>
+  <p><span class="para">2</span><b>Header &lt;functional&gt; synopsis</b></p>
+  <pre>
+// 20.14.3, invoke:
+template &lt;class F, class... Args&gt; <ins>constexpr </ins>result_of_t&lt;F&amp;&amp;(Args&amp;&amp;...)&gt; invoke(F&amp;&amp; f, Args&amp;&amp;... args);</pre>
+  <h4>20.14.3 Function template invoke [func.invoke]</h4>
+  <pre>
+template &lt;class F, class... Args&gt;
+  <ins>constexpr </ins>result_of_t&lt;F&amp;&amp;(Args&amp;&amp;...)&gt; invoke(F&amp;&amp; f, Args&amp;&amp;... args);</pre>
+</blockquote>
+
+<h2><a name="wording.minimal">4. Proposed Wording to <code>std::reference_wrapper</code></a></h2>
+
+<p>The proposed wording changes refer to <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf">N4606</a> (C++ Working Draft, 2016-07-12).</p>
+
+<blockquote class="std">
+  <h3>20.14 Function objects [function.objects]</h3>
+  <p><span class="para">2</span><b>Header &lt;functional&gt; synopsis</b></p>
+  <pre>
+// 20.14.4, reference_wrapper:
+template &lt;class T&gt; class reference_wrapper;
+
+template &lt;class T&gt; <ins>constexpr </ins>reference_wrapper&lt;T&gt; ref(T&amp;) noexcept;
+template &lt;class T&gt; <ins>constexpr </ins>reference_wrapper&lt;const T&gt; cref(const T&amp;) noexcept;
+template &lt;class T&gt; void ref(const T&amp;&amp;) = delete;
+template &lt;class T&gt; void cref(const T&amp;&amp;) = delete;
+
+template &lt;class T&gt; <ins>constexpr </ins>reference_wrapper&lt;T&gt; ref(reference_wrapper&lt;T&gt;) noexcept;
+template &lt;class T&gt; <ins>constexpr </ins>reference_wrapper&lt;const T&gt; cref(reference_wrapper&lt;T&gt;) noexcept;</pre>
+  <h4>20.14.4 Class template reference_wrapper [refwrap]</h4>
+  <pre>
+namespace std {
+  template &lt;class T&gt; class reference_wrapper {
+  public:
+    // types
+    using type = T;
+
+    // construct/copy/destroy
+    <ins>constexpr </ins>reference_wrapper(T&amp;) noexcept;
+    reference_wrapper(T&amp;&amp;) = delete;
+
+    // do not bind to temporary objects
+    <ins>constexpr </ins>reference_wrapper(const reference_wrapper&amp; x) noexcept;
+
+    // assignment
+    <ins>constexpr </ins>reference_wrapper&amp; operator=(const reference_wrapper&amp; x) noexcept;
+
+    // access
+    <ins>constexpr </ins>operator T&amp; () const noexcept;
+    <ins>constexpr </ins>T&amp; get() const noexcept;
+
+    // invocation
+    template &lt;class... ArgTypesT&gt;
+    <ins>constexpr </ins>result_of_t&lt;T&amp;(ArgTypes&amp;&amp;...)&gt;
+    operator() (ArgTypes&amp;&amp;...) const;
+  };
+}</pre>
+<p><span class="para">1</span><code>reference_wrapper&lt;T&gt;</code> is a <code>CopyConstructible</code> and <code>CopyAssignable</code> wrapper around a reference to an object or function of type <code>T</code>.</p>
+<p><span class="para">2</span><code>reference_wrapper&lt;T&gt;</code> shall be a trivially copyable type (3.9).</p>
+<h5>20.14.4.1 <code>reference_wrapper</code> construct/copy/destroy [refwrap.const]</h5>
+<pre><ins>constexpr </ins>reference_wrapper(T&amp; t) noexcept;</pre>
+<p><span class="para">1</span><dl class="attribute"><dt>Effects:</dt> <dd>Constructs a <code>reference_wrapper</code> object that stores a reference to <code>t</code>.</dd></dl></p>
+<pre><ins>constexpr </ins>reference_wrapper(const reference_wrapper&amp; x) noexcept;</pre>
+<p><span class="para">2</span><dl class="attribute"><dt>Effects:</dt> <dd>Constructs a <code>reference_wrapper</code> object that stores a reference to <code>x.get()</code>.</dd></dl></p>
+<h5>20.14.4.2 <code>reference_wrapper</code> assignment [refwrap.assign]</h5>
+<pre><ins>constexpr </ins>reference_wrapper&amp; operator=(const reference_wrapper&amp; x) noexcept;</pre>
+<p><span class="para">1</span><dl class="attribute"><dt>Postcondition:</dt> <dd><code>*this</code> stores a reference to <code>x.get()</code>.</dd></dl></p>
+<h5>20.14.4.3 <code>reference_wrapper</code> access [refwrap.access]</h5>
+<pre><ins>constexpr </ins>operator T&amp; () const noexcept;</pre>
+<p><span class="para">1</span><dl class="attribute"><dt>Returns:</dt> <dd>The stored reference.</dd></dl></p>
+<pre><ins>constexpr </ins>T&amp; get() const noexcept;</pre>
+<p><span class="para">2</span><dl class="attribute"><dt>Returns:</dt> <dd>The stored reference.</dd></dl></p>
+<h5>20.14.4.4 <code>reference_wrapper</code> invocation [refwrap.invoke]</h5>
+<pre>template &lt;class... ArgTypes&gt;
+  <ins>constexpr </ins>result_of_t&lt;T&amp;(ArgTypes&amp;&amp;...)&gt;
+    operator()(ArgTypes&amp;&amp;... args) const;</pre>
+<p><span class="para">1</span><dl class="attribute"><dt>Returns:</dt> <dd><code><i>INVOKE</i>(get(), std::forward&lt;ArgTypes&gt;(args)...)</code>. (20.14.2)</dd></dl></p>
+<h5>20.14.4.5 <code>reference_wrapper</code> helper functions [refwrap.helpers]</h5>
+<pre>template &lt;class T&gt; <ins>constexpr </ins>reference_wrapper&lt;T&gt; ref(T&amp; t) noexcept;</pre>
+<p><span class="para">1</span><dl class="attribute"><dt>Returns:</dt> <dd><code>reference_wrapper&lt;T&gt;(t)</code></dd></dl></p>
+<pre>template &lt;class T&gt; <ins>constexpr </ins>reference_wrapper&lt;T&gt; ref(reference_wrapper&lt;T&gt; t) noexcept;</pre>
+<p><span class="para">2</span><dl class="attribute"><dt>Returns:</dt> <dd><code>ref(t.get())</code></dd></dl></p>
+<pre>template &lt;class T&gt; <ins>constexpr </ins>reference_wrapper&lt;const T&gt; cref(const T&amp; t) noexcept;</pre>
+<p><span class="para">3</span><dl class="attribute"><dt>Returns:</dt> <dd><code>reference_wrapper&lt;const T&gt;(t)</code></dd></dl></p>
+<pre>template &lt;class T&gt; <ins>constexpr </ins>reference_wrapper&lt;const T&gt; cref(reference_wrapper&lt;T&gt; t) noexcept;</pre>
+<p><span class="para">4</span><dl class="attribute"><dt>Returns:</dt> <dd><code>cref(t.get())</code></dd></dl></p>
+</blockquote>
+
+<h2><a name="literature">5. References</a></h2>
+
+<ol>
+<li>Richard Smith, "Working Draft, Standard for Programming Language C++" (N4606, <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf">http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf</a>)</li>
+</ol>
+
+</body></html>
