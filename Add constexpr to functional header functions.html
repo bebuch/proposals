@@ -3,6 +3,11 @@
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <style type="text/css">
+pre,code,kbd,samp,tt{
+  font-family:monospace,monospace;
+  font-size:0.8em;
+}
+
 pre {margin-left:0; }
 pre > i {
   font-family: "OCR A Extended", "Consolas", "Lucida Console", monospace;
@@ -58,19 +63,22 @@ p.comment {
   background-color: #ffffe6;
 }
 
-blockquote.std h3{
+blockquote.std h4{
   font-size:1.2em;
   font-weight:bold;
-}
-
-blockquote.std h4{
-  font-size:1.1em;
-  font-weight:bold;
+  margin:1em 0 1em 0;
 }
 
 blockquote.std h5{
+  font-size:1.1em;
+  font-weight:bold;
+  margin:1.2em 0 1em 0;
+}
+
+blockquote.std h6{
   font-size:1.05em;
   font-weight:bold;
+  margin:1.2em 0 1em 0;
 }
 
 span.para{
@@ -104,48 +112,77 @@ td { text-align: left; vertical-align: top;
     <th>Document number:&nbsp;&nbsp;</th><th> </th><td>P####R0</td>
   </tr>
   <tr>
-    <th>Date:&nbsp;&nbsp;</th><th> </th><td>2016-09-28</td>
+    <th>Date:&nbsp;&nbsp;</th><th></th><td>2016-09-28</td>
   </tr>
   <tr>
-    <th>Project:&nbsp;&nbsp;</th><th> </th><td>Programming Language C++, Library Evolution Working Group</td>
+    <th>Project:&nbsp;&nbsp;</th><th></th><td>Programming Language C++, Library Evolution Working Group</td>
   </tr>
   <tr>
-    <th>Reply-to:&nbsp;&nbsp;</th><th> </th><td>Benjamin Buch (<a href="mailto:benni.buch@gmail.com">benni.buch@gmail.com</a>)</td>
+    <th>Reply-to:&nbsp;&nbsp;</th><th></th><td>Benjamin Buch (<a href="mailto:benni.buch@gmail.com">benni.buch@gmail.com</a>)</td>
   </tr>
 </tbody></table>
 
 <h1><a name="title">Add <code>constexpr</code> to functional header functions</a></h1>
 
-<h2><a name="intro">1. Introduction</a></h2>
+<h2><a name="intro">1 Introduction</a></h2>
 
-<p>In this paper wording changes are proposed to add <code>constexpr</code> to the function <code>std::invoke</code>, the function <code>std::not_fn</code>, all member functions of <code>std::reference_wrapper</code> and to it's helper functions.</p>
+<p>In this paper wording changes are proposed to add <code>constexpr</code> to:</p>
+<ul>
+<li>the function <code>std::invoke</code></li>
+<li>all member functions of <code>std::reference_wrapper</code> and to it's helper functions.</li>
+<li>the function <code>std::not_fn</code></li>
+<li>the function <code>std::bind</code></li>
+<li>the function <code>std::mem_fn</code></li>
+</ul>
 
-<h2><a name="motivation">2. Motivation and Scope</a></h2>
+<h2><a name="motivation">2 Motivation and Scope</a></h2>
 
 <p>Without being <code>constexpr</code> itself, the functions cannot be used in <code>constexpr</code> context. This results in unnecessarily reimplementations by users, if they want to use these basic tools in a <code>constexpr</code> context.</p>
 
-<h2><a name="wording.invoke">3. Proposed Wording to <code>std::invoke</code></a></h2>
+<p></p>
+
+<h2><a name="discussion">3 Discussion</a></h2>
+
+The proposed wording changes might break existing code, because a <code>constexpr</code> function is eagerly instantiated, than a non-<code>constexpr</code> one.
+
+<pre>
+template&lt;class T&gt;
+int f(T){
+    return T::not_existing_member;
+}
+
+template&lt;class T&gt;
+constexpr int g(T){
+    return T::not_existing_member;
+}
+
+int main(){
+    decltype(f(0)) a; // Well-formed
+    decltype(g(0)) b; // Ill-formed
+}</pre>
+
+<h2><a name="wording">4 Proposed Wording</a></h2>
 
 <p>The proposed wording changes refer to <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf">N4606</a> (C++ Working Draft, 2016-07-12).</p>
 
+<h3><a name="wording.invoke">4.1 <code>std::invoke</code></a></h3>
+
 <blockquote class="std">
-  <h3>20.14 Function objects [function.objects]</h3>
+  <h4>20.14 Function objects [function.objects]</h4>
   <p><span class="para">2</span><b>Header &lt;functional&gt; synopsis</b></p>
   <pre>
 // 20.14.3, invoke:
 template &lt;class F, class... Args&gt; <ins>constexpr </ins>result_of_t&lt;F&amp;&amp;(Args&amp;&amp;...)&gt; invoke(F&amp;&amp; f, Args&amp;&amp;... args);</pre>
-  <h4>20.14.3 Function template invoke [func.invoke]</h4>
+  <h5>20.14.3 Function template invoke [func.invoke]</h5>
   <pre>
 template &lt;class F, class... Args&gt;
   <ins>constexpr </ins>result_of_t&lt;F&amp;&amp;(Args&amp;&amp;...)&gt; invoke(F&amp;&amp; f, Args&amp;&amp;... args);</pre>
 </blockquote>
 
-<h2><a name="wording.reference_wrapper">4. Proposed Wording to <code>std::reference_wrapper</code></a></h2>
-
-<p>The proposed wording changes refer to <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf">N4606</a> (C++ Working Draft, 2016-07-12).</p>
+<h3><a name="wording.reference_wrapper">4.2 <code>std::reference_wrapper</code></a></h3>
 
 <blockquote class="std">
-  <h3>20.14 Function objects [function.objects]</h3>
+  <h4>20.14 Function objects [function.objects]</h4>
   <p><span class="para">2</span><b>Header &lt;functional&gt; synopsis</b></p>
   <pre>
 // 20.14.4, reference_wrapper:
@@ -158,7 +195,7 @@ template &lt;class T&gt; void cref(const T&amp;&amp;) = delete;
 
 template &lt;class T&gt; <ins>constexpr </ins>reference_wrapper&lt;T&gt; ref(reference_wrapper&lt;T&gt;) noexcept;
 template &lt;class T&gt; <ins>constexpr </ins>reference_wrapper&lt;const T&gt; cref(reference_wrapper&lt;T&gt;) noexcept;</pre>
-  <h4>20.14.4 Class template reference_wrapper [refwrap]</h4>
+  <h5>20.14.4 Class template reference_wrapper [refwrap]</h5>
   <pre>
 namespace std {
   template &lt;class T&gt; class reference_wrapper {
@@ -188,20 +225,20 @@ namespace std {
 }</pre>
 <p><span class="para">1</span><code>reference_wrapper&lt;T&gt;</code> is a <code>CopyConstructible</code> and <code>CopyAssignable</code> wrapper around a reference to an object or function of type <code>T</code>.</p>
 <p><span class="para">2</span><code>reference_wrapper&lt;T&gt;</code> shall be a trivially copyable type (3.9).</p>
-<h5>20.14.4.1 <code>reference_wrapper</code> construct/copy/destroy [refwrap.const]</h5>
+<h6>20.14.4.1 <code>reference_wrapper</code> construct/copy/destroy [refwrap.const]</h6>
 <pre><ins>constexpr </ins>reference_wrapper(T&amp; t) noexcept;</pre>
 <p><span class="para">1</span><dl class="attribute"><dt>Effects:</dt> <dd>Constructs a <code>reference_wrapper</code> object that stores a reference to <code>t</code>.</dd></dl></p>
 <pre><ins>constexpr </ins>reference_wrapper(const reference_wrapper&amp; x) noexcept;</pre>
 <p><span class="para">2</span><dl class="attribute"><dt>Effects:</dt> <dd>Constructs a <code>reference_wrapper</code> object that stores a reference to <code>x.get()</code>.</dd></dl></p>
-<h5>20.14.4.2 <code>reference_wrapper</code> assignment [refwrap.assign]</h5>
+<h6>20.14.4.2 <code>reference_wrapper</code> assignment [refwrap.assign]</h6>
 <pre><ins>constexpr </ins>reference_wrapper&amp; operator=(const reference_wrapper&amp; x) noexcept;</pre>
 <p><span class="para">1</span><dl class="attribute"><dt>Postcondition:</dt> <dd><code>*this</code> stores a reference to <code>x.get()</code>.</dd></dl></p>
-<h5>20.14.4.3 <code>reference_wrapper</code> access [refwrap.access]</h5>
+<h6>20.14.4.3 <code>reference_wrapper</code> access [refwrap.access]</h6>
 <pre><ins>constexpr </ins>operator T&amp; () const noexcept;</pre>
 <p><span class="para">1</span><dl class="attribute"><dt>Returns:</dt> <dd>The stored reference.</dd></dl></p>
 <pre><ins>constexpr </ins>T&amp; get() const noexcept;</pre>
 <p><span class="para">2</span><dl class="attribute"><dt>Returns:</dt> <dd>The stored reference.</dd></dl></p>
-<h5>20.14.4.4 <code>reference_wrapper</code> invocation [refwrap.invoke]</h5>
+<h6>20.14.4.4 <code>reference_wrapper</code> invocation [refwrap.invoke]</h6>
 <pre>template &lt;class... ArgTypes&gt;
   <ins>constexpr </ins>result_of_t&lt;T&amp;(ArgTypes&amp;&amp;...)&gt;
     operator()(ArgTypes&amp;&amp;... args) const;</pre>
@@ -217,18 +254,16 @@ namespace std {
 <p><span class="para">4</span><dl class="attribute"><dt>Returns:</dt> <dd><code>cref(t.get())</code></dd></dl></p>
 </blockquote>
 
-<h2><a name="wording.not_fn">5. Proposed Wording to <code>std::not_fn</code></a></h2>
-
-<p>The proposed wording changes refer to <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf">N4606</a> (C++ Working Draft, 2016-07-12).</p>
+<h3><a name="wording.not_fn">4.3 <code>std::not_fn</code></a></h3>
 
 <blockquote class="std">
-  <h3>20.14 Function objects [function.objects]</h3>
+  <h4>20.14 Function objects [function.objects]</h4>
   <p><span class="para">2</span><b>Header &lt;functional&gt; synopsis</b></p>
   <pre>
 // 20.14.9, function template not_fn:
 template &lt;class F&gt; <ins>constexpr </ins><i>unspecified</i> not_fn(F&amp;&amp; f);
 </pre>
-  <h4>20.14.9 Function template not_fn [func.not_fn]</h4>
+  <h5>20.14.9 Function template not_fn [func.not_fn]</h5>
   <pre>template &lt;class F&gt; <ins>constexpr </ins>unspecified not_fn(F&amp;&amp; f);</pre>
   <p><span class="para">1</span><dl class="attribute"><dt>Effects:</dt> <dd><p>Equivalent to <code>return <i>call_wrapper</i>(std::forward&lt;F&gt;(f));</code> where <code><i>call_wrapper</i></code> is an exposition only class defined as follows:</p>
   <pre>  class <i>call_wrapper</i>
@@ -281,7 +316,39 @@ template &lt;class F&gt; <ins>constexpr </ins><i>unspecified</i> not_fn(F&amp;&a
 </pre>
 </blockquote>
 
-<h2><a name="literature">6. References</a></h2>
+<h3><a name="wording.invoke">4.4 <code>std::bind</code></a></h3>
+
+<blockquote class="std">
+  <h4>20.14 Function objects [function.objects]</h4>
+  <p><span class="para">2</span><b>Header &lt;functional&gt; synopsis</b></p>
+  <pre>
+// 20.14.10, bind:
+template&lt;class F, class... BoundArgs&gt;
+  <ins>constexpr </ins><i>unspecified</i> bind(F&amp;&amp;, BoundArgs&amp;&amp;...);
+template&lt;class R, class F, class... BoundArgs&gt;
+  <ins>constexpr </ins><i>unspecified</i> bind(F&amp;&amp;, BoundArgs&amp;&amp;...);</pre>
+  <h6>20.14.10.3 Function template bind [func.bind.bind]</h6>
+  <pre>
+template&lt;class F, class... BoundArgs&gt;
+  <ins>constexpr </ins><i>unspecified</i> bind(F&amp;&amp; f, BoundArgs&amp;&amp;... bound_args);</pre>
+  <pre>
+template&lt;class R, class F, class... BoundArgs&gt;
+  <ins>constexpr </ins><i>unspecified</i> bind(F&amp;&amp; f, BoundArgs&amp;&amp;... bound_args);</pre>
+</blockquote>
+
+<h3><a name="wording.invoke">4.5 <code>std::mem_fn</code></a></h3>
+
+<blockquote class="std">
+  <h4>20.14 Function objects [function.objects]</h4>
+  <p><span class="para">2</span><b>Header &lt;functional&gt; synopsis</b></p>
+  <pre>
+// 20.14.11, member function adaptors:
+template&lt;class R, class T&gt; <ins>constexpr </ins><i>unspecified</i> mem_fn(R T::*) noexcept;</pre>
+<h5>20.14.11 Function template mem_fn [func.memfn]</h5>
+<pre>template&lt;class R, class T&gt; <ins>constexpr </ins><i>unspecified</i> mem_fn(R T::* pm) noexcept;</pre>
+</blockquote>
+
+<h2><a name="literature">5. References</a></h2>
 
 <ol>
 <li>Richard Smith, "Working Draft, Standard for Programming Language C++" (N4606, <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf">http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf</a>)</li>
