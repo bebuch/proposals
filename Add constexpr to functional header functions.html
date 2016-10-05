@@ -89,6 +89,44 @@ span.para{
   font-size:0.8em;
 }
 
+span.keyword{
+  font-weight:bold;
+}
+
+span.type{
+  color:blue;
+}
+
+span.preprocessor{
+  color:green;
+}
+
+span.comment{
+  color:gray;
+}
+
+span.string{
+  color:red;
+}
+
+pre.numbered{
+  background:#fff;
+  border:1px #eee solid;
+}
+
+pre.numbered span.lineno{
+  background:#eee;
+  text-align:right;
+  display:inline-block;
+  width:2em;
+  padding-right:0.5em;
+  margin-right:0.5em;
+  -ms-user-select:none;
+  -moz-user-select:none;
+  -webkit-user-select:none;
+  user-select:none;
+}
+
 table.header { border: 0px; border-spacing: 0;
   margin-left: 0px; font-style: normal; }
 
@@ -112,7 +150,7 @@ td { text-align: left; vertical-align: top;
     <th>Document number:&nbsp;&nbsp;</th><th> </th><td>P####R0</td>
   </tr>
   <tr>
-    <th>Date:&nbsp;&nbsp;</th><th></th><td>2016-09-28</td>
+    <th>Date:&nbsp;&nbsp;</th><th></th><td>2016-10-05</td>
   </tr>
   <tr>
     <th>Project:&nbsp;&nbsp;</th><th></th><td>Programming Language C++, Library Evolution Working Group</td>
@@ -139,13 +177,11 @@ td { text-align: left; vertical-align: top;
 
 <p>Without being <code>constexpr</code> itself, the functions cannot be used in <code>constexpr</code> context. This results in unnecessarily reimplementations by users, if they want to use these basic tools in a <code>constexpr</code> context.</p>
 
-<p></p>
-
 <h2><a name="discussion">3 Discussion</a></h2>
 
-The proposed wording changes might break existing code, because a <code>constexpr</code> function is eagerly instantiated, than a non-<code>constexpr</code> one.
+<p>The proposed wording changes might break existing code, because a <code>constexpr</code> function is eagerly instantiated, than a non-<code>constexpr</code> one.</p>
 
-<pre>
+<pre class="numbered">
 template&lt;class T&gt;
 int f(T){
     return T::not_existing_member;
@@ -160,6 +196,57 @@ int main(){
     decltype(f(0)) a; // Well-formed
     decltype(g(0)) b; // Ill-formed
 }</pre>
+
+<p>We can analyse the impact of <code>constexpr</code> by looking on <code>std::bind</code>. Of corse we will look at a very simplified <code>bind</code>, but the describt effects are simmilar for a complete real world implementation.</p>
+
+<pre class="numbered">
+#include &lt;type_traits&gt;
+
+template &lt;class F, class Arg&gt;
+/*constexpr*/ decltype(std::declval&lt;F&amp;&amp;&gt;()(std::declval&lt;Arg&amp;&amp;&gt;()))
+invoke(F&amp;&amp; f, Arg&amp;&amp; arg){
+    return static_cast&lt;F&amp;&amp;&gt;(f)(static_cast&lt;Arg&amp;&amp;&gt;(arg));
+}
+
+template&lt;class F, class Arg&gt;
+struct __bind{
+    F f;
+    Arg arg;
+
+    auto operator()()
+    -&gt; decltype(invoke(static_cast&lt;F&amp;&gt;(f), static_cast&lt;Arg&amp;&gt;(arg)))
+    {
+        return invoke(static_cast&lt;F&amp;&gt;(f), static_cast&lt;Arg&amp;&gt;(arg));
+    }
+
+    auto operator()()const
+    -&gt; decltype(invoke(static_cast&lt;F const&amp;&gt;(f), static_cast&lt;Arg const&amp;&gt;(arg)))
+    {
+        return invoke(static_cast&lt;F const&amp;&gt;(f), static_cast&lt;Arg const&amp;&gt;(arg));
+    }
+};
+
+template&lt;class F, class Arg&gt;
+auto bind(F&amp;&amp; f, Arg&amp;&amp; arg){
+    return __bind&lt; F, Arg &gt;{ static_cast&lt;F&amp;&amp;&gt;(f), static_cast&lt;Arg&amp;&amp;&gt;(arg) };
+}
+
+struct Foo{
+    template&lt;class U&gt;
+    /*constexpr*/ int operator()(U&amp;&amp;)const{
+        static_assert(std::is_same&lt;U, int&amp;&gt;::value, "");
+        return 0;
+    }
+};
+
+int main(){
+    auto bar = bind(Foo(), 42);
+    bar();
+}</pre>
+
+<p>This code is based on libc++'s implementation in version 3.9.0. The <code>__bind</code> function operators are implemented via <code>invoke</code> and both overloads, the non-<code>const</code> and the <code>const</code> one, have an explicit return type declaration.</p>
+
+<p>The call of <code>bar</code> will invoke the non-const overload of <code>__bind</code>, but it will also substitude the const overload. If the return type is explicit declared, as it is here, the return type is also substituded. This in turn instantiates the explicit declared return type of <code>invoke</code>, which by the way is equivalent to <code>std::result_of_t&lt;F&amp;&amp;(Arg&amp;&amp;)&gt;</code>. </p>
 
 <h2><a name="wording">4 Proposed Wording</a></h2>
 
@@ -353,5 +440,65 @@ template&lt;class R, class T&gt; <ins>constexpr </ins><i>unspecified</i> mem_fn(
 <ol>
 <li>Richard Smith, "Working Draft, Standard for Programming Language C++" (N4606, <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf">http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf</a>)</li>
 </ol>
+
+<script type="text/javascript">
+    var tags = document.querySelectorAll('pre');
+    var string = /("[^"]*")/g;
+    for(var i = 0; i < tags.length; ++i){
+        var tag = tags[i];
+        tag.innerHTML = tag.innerHTML.replace(string, "STRINGB$1STRINGE");
+    }
+
+    tags = document.querySelectorAll('pre,code');
+    var keywords = /(^|[^a-zA-Z_])(template|typename|class|static_assert|noexcept|constexpr|return|nullptr|static_cast|auto|operator|struct|decltype|private|protected|public|for|do|while|if)(?![a-zA-Z0-9_])/g;
+    for(var i = 0; i < tags.length; ++i){
+        var tag = tags[i];
+        tag.innerHTML = tag.innerHTML.replace(keywords, "$1KEYWORDB$2KEYWORDE");
+    }
+
+    var types = /(^|[^a-zA-Z_])(char|short|int|long|signed|unsigned|const|volatile)(?![a-zA-Z0-9_])/g;
+    for(var i = 0; i < tags.length; ++i){
+        var tag = tags[i];
+        tag.innerHTML = tag.innerHTML.replace(types, "$1TYPEB$2TYPEE");
+    }
+
+    var linecomment = /(\/\/.*)/mg;
+    for(var i = 0; i < tags.length; ++i){
+        var tag = tags[i];
+        tag.innerHTML = tag.innerHTML.replace(linecomment, "COMMENTB$1COMMENTE");
+    }
+
+    var comment = /(\/\*.*?\*\/)/g;
+    for(var i = 0; i < tags.length; ++i){
+        var tag = tags[i];
+        tag.innerHTML = tag.innerHTML.replace(comment, "COMMENTB$1COMMENTE");
+    }
+
+    tags = document.querySelectorAll('pre');
+    var preprocessor = /(^#.*$)/mg;
+    for(var i = 0; i < tags.length; ++i){
+        var tag = tags[i];
+        tag.innerHTML = tag.innerHTML.replace(preprocessor, "PREB$1PREE");
+    }
+
+    tags = document.querySelectorAll('pre,code');
+    for(var i = 0; i < tags.length; ++i){
+        var tag = tags[i];
+        tag.innerHTML = tag.innerHTML.
+            replace(/STRINGB(.*?)STRINGE/g, "<span class=\"string\">$1</span>").
+            replace(/KEYWORDB(.*?)KEYWORDE/g, "<span class=\"keyword\">$1</span>").
+            replace(/TYPEB(.*?)TYPEE/g, "<span class=\"type\">$1</span>").
+            replace(/PREB(.*?)PREE/g, "<span class=\"preprocessor\">$1</span>").
+            replace(/COMMENTB(.*?)COMMENTE/g, "<span class=\"comment\">$1</span>");
+    }
+
+    tags = document.querySelectorAll('pre.numbered');
+    var lines = /^/mg;
+    for(var i = 0; i < tags.length; ++i){
+        var tag = tags[i];
+		var line = 1;
+		tag.innerHTML = tag.innerHTML.replace(lines, function(){ return "<span class=\"lineno\">" + line++ + "</span>"; });
+    }
+</script>
 
 </body></html>
