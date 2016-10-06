@@ -117,7 +117,9 @@ pre.numbered{
 pre.numbered span.lineno{
   background:#eee;
   text-align:right;
-  display:inline-block;
+/*   display:inline-block; */
+  border:1px #eee solid;
+  float:left;
   width:2em;
   padding-right:0.5em;
   margin-right:0.5em;
@@ -179,7 +181,7 @@ td { text-align: left; vertical-align: top;
 
 <h2><a name="discussion">3 Discussion</a></h2>
 
-<p>The proposed wording changes might break existing code, because a <code>constexpr</code> function is eagerly instantiated, than a non-<code>constexpr</code> one.</p>
+<p>The proposed wording changes might break existing code, because a <code>constexpr</code> function is eagerly instantiated than a non-<code>constexpr</code> one.</p>
 
 <pre class="numbered">
 template&lt;class T&gt;
@@ -194,16 +196,19 @@ constexpr int g(T){
 
 int main(){
     decltype(f(0)) a; // Well-formed
-    decltype(g(0)) b; // Ill-formed
+    decltype(g(0)) b; // Ill-formed if the function body instantiation is triggered (implementation dependet)
 }</pre>
 
-<p>We can analyse the impact of <code>constexpr</code> by looking on <code>std::bind</code>. Of corse we will look at a very simplified <code>bind</code>, but the describt effects are simmilar for a complete real world implementation.</p>
+<h3>3.1 The problem with <code>std::bind</code></h3>
+
+<p>We can analyse the impact of <code>constexpr</code> by looking on <code>std::bind</code>. Of course we will take a look on a very simplified <code>bind</code>, but the mentioned effects are simmilar to a complete real world implementation.</p>
 
 <pre class="numbered">
 #include &lt;type_traits&gt;
 
 template &lt;class F, class Arg&gt;
-/*constexpr*/ decltype(std::declval&lt;F&amp;&amp;&gt;()(std::declval&lt;Arg&amp;&amp;&gt;()))
+/*constexpr*/
+decltype(std::declval&lt;F&amp;&amp;&gt;()(std::declval&lt;Arg&amp;&amp;&gt;())) // Same as std::result_of_t&lt;F&amp;&amp;(Arg&amp;&amp;)&gt;
 invoke(F&amp;&amp; f, Arg&amp;&amp; arg){
     return static_cast&lt;F&amp;&amp;&gt;(f)(static_cast&lt;Arg&amp;&amp;&gt;(arg));
 }
@@ -240,13 +245,88 @@ struct Foo{
 };
 
 int main(){
-    auto bar = bind(Foo(), 42);
-    bar();
+    auto foo = bind(Foo(), 42);
+    foo();
 }</pre>
 
-<p>This code is based on libc++'s implementation in version 3.9.0. The <code>__bind</code> function operators are implemented via <code>invoke</code> and both overloads, the non-<code>const</code> and the <code>const</code> one, have an explicit return type declaration.</p>
+<p>The <code>__bind</code> function operators are implemented via <code>invoke</code> and both overloads, the non-<code>const</code> and the <code>const</code> one, have an explicit return type declaration.</p>
 
-<p>The call of <code>bar</code> will invoke the non-const overload of <code>__bind</code>, but it will also substitude the const overload. If the return type is explicit declared, as it is here, the return type is also substituded. This in turn instantiates the explicit declared return type of <code>invoke</code>, which by the way is equivalent to <code>std::result_of_t&lt;F&amp;&amp;(Arg&amp;&amp;)&gt;</code>. </p>
+<p>The call <code>foo()</code> will invoke the non-<code>const</code> overload of <code>__bind</code>, but it will also instantiate the <code>const</code> overload. If the return type is declared explicitly, as it is here, the return type is also instantiated. This in turn instantiates the explicit declared return type of <code>invoke</code>. The <code>invoke</code> call by the non-<code>const</code> overload is wellformed. But the call of the <code>const</code> overload will trigger the <code>static_assert</code>, if the function body of the function operator of <code>Foo</code> is instantited.</p>
+
+<p>If neighter <code>invoke</code> nor the function operator of <code>Foo</code> are declared <code>constexpr</code>, the function body must not be instantited and the code is well formed.</p>
+
+<p>If <code>Foo</code>'s function operator is declared <code>constexpr</code>, the return type declaration of <code>invoke</code> does call <code>Foo</code>'s function operator in an unevaluated context. Now it depends on wheater a <code>constexpr</code> function body is instantiated in unevaluated context, if yes, the code is ill-formed.</p>
+
+Otherwise, if <code>invoke</code> is declared <code>constexpr</code>, the return type invocation will not instantiate <code>Foo</code>'s function operator, since it is not <code>constexpr</code> itself. But <code>invoke</code>'s function body may be instantiated and it does invoke <code>Foo</code>'s function operator in an evaluated context, which in turn will instantiate it's function body and trigger the <code>static_assert</code> as well.</p>
+
+<p>The GCC-Compiler does not instantiate the <code>constexpr</code> function body in unevaluated context if it is not in an <code>constexpr</code> context. If you declare all functions and the variable <code>foo</code> in the example <code>constexpr</code>, it will trigger the <code>static_assert</code> as well.</p>
+
+<p>The LLVM-Compiler does instantiate <code>constexpr</code> functions eagerly and triggers the <code>static_assert</code> even if <code>foo</code> is not <code>constexpr</code>.</p>
+
+<h3>3.2 How to fix existing code?</h3>
+
+<p>As long as <code>__bind</code>'s function operator overloads are not <code>constexpr</code> itself, the problem is the instantiation of the explicitly declared return type of the <code>const</code>-overload. Making the return type implicit (by removing the <code>decltype</code> line) will fix it.</p>
+
+<p>If you make all functions <code>constexpr</code>, but not <code>foo</code>, the code is compiled by GCC and LLVM, since also the LLVM-Compiler does not instantiate the function body of the unused <code>const</code>-overload.</p>
+
+<p>This will keep all existing code which use <code>std::bind</code> unbroken. Of course, existing user code which is simmilar as in <code>__bind</code> will break. But it can simply be fixed in the same way.</p>
+
+<h3>3.3 How to fix new code?</h3>
+
+<p>Once <code>invoke</code>- and the <code>bind</code>-functions are declared <code>constexpr</code>, you may want to make <code>foo</code> also a <code>constexpr</code> variable. This will bring us back to our old problem and this time it can not be fixed by changing <code>invoke</code> or <code>bind</code>.</p>
+
+<p>We have to fix it on the user side, so in the definition of <code>Foo</code>, by defining a non-<code>const</code> overload of the function operator:</p>
+
+
+<pre>
+#include &lt;type_traits&gt;
+
+template &lt;class F, class Arg&gt;
+constexpr decltype(std::declval&lt;F&amp;&amp;&gt;()(std::declval&lt;Arg&amp;&amp;&gt;()))
+invoke(F&amp;&amp; f, Arg&amp;&amp; arg){
+    return static_cast&lt;F&amp;&amp;&gt;(f)(static_cast&lt;Arg&amp;&amp;&gt;(arg));
+}
+
+template&lt;class F, class Arg&gt;
+struct __bind{
+    F f;
+    Arg arg;
+
+    constexpr auto operator()(){
+        return invoke(static_cast&lt;F&amp;&gt;(f), static_cast&lt;Arg&amp;&gt;(arg));
+    }
+
+    constexpr auto operator()()const{
+        return invoke(static_cast&lt;F const&amp;&gt;(f), static_cast&lt;Arg const&amp;&gt;(arg));
+    }
+};
+
+template&lt;class F, class Arg&gt;
+constexpr auto bind(F&amp;&amp; f, Arg&amp;&amp; arg){
+    return __bind&lt; F, Arg &gt;{ static_cast&lt;F&amp;&amp;&gt;(f), static_cast&lt;Arg&amp;&amp;&gt;(arg) };
+}
+
+struct Foo{
+    template&lt;class U&gt;
+    constexpr int operator()(U&amp;&amp;){
+        static_assert(std::is_same&lt;U, int&amp;&gt;::value, "");
+        return 0;
+    }
+
+    template&lt;class U&gt;
+    constexpr int operator()(U&amp;&amp;)const{
+        static_assert(std::is_same&lt;U, int const&amp;&gt;::value, "");
+        return 0;
+    }
+};
+
+int main(){
+    constexpr auto foo = bind(Foo(), 42);
+    auto a = foo();
+
+    constexpr auto const bar = bind(Foo(), 42);
+    auto b = bar();
+}</pre>
 
 <h2><a name="wording">4 Proposed Wording</a></h2>
 
@@ -456,7 +536,7 @@ template&lt;class R, class T&gt; <ins>constexpr </ins><i>unspecified</i> mem_fn(
         tag.innerHTML = tag.innerHTML.replace(keywords, "$1KEYWORDB$2KEYWORDE");
     }
 
-    var types = /(^|[^a-zA-Z_])(char|short|int|long|signed|unsigned|const|volatile)(?![a-zA-Z0-9_])/g;
+    var types = /(^|[^a-zA-Z_])(char|short|int|long|signed|unsigned|const|volatile|void|delete|default)(?![a-zA-Z0-9_])/g;
     for(var i = 0; i < tags.length; ++i){
         var tag = tags[i];
         tag.innerHTML = tag.innerHTML.replace(types, "$1TYPEB$2TYPEE");
@@ -496,8 +576,13 @@ template&lt;class R, class T&gt; <ins>constexpr </ins><i>unspecified</i> mem_fn(
     var lines = /^/mg;
     for(var i = 0; i < tags.length; ++i){
         var tag = tags[i];
-		var line = 1;
-		tag.innerHTML = tag.innerHTML.replace(lines, function(){ return "<span class=\"lineno\">" + line++ + "</span>"; });
+        var count = tag.innerHTML.split(/\r\n|\r|\n/).length;
+        var out = "<span class=\"lineno\">";
+        for(var j = 0; j < count; ++j){
+            out += j + "\n";
+        }
+        out += "</span>";
+        tag.innerHTML = out + tag.innerHTML;
     }
 </script>
 
