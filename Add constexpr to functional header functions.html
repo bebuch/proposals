@@ -201,7 +201,7 @@ int main(){
 
 <h3>3.1 The problem with <code>std::bind</code></h3>
 
-<p>We can analyse the impact of <code>constexpr</code> by looking on <code>std::bind</code>. Of course we will take a look on a very simplified <code>bind</code>, but the mentioned effects are simmilar to a complete real world implementation.</p>
+<p>We can analyse the impact of <code>constexpr</code> by looking on <code>std::bind</code>. Of course we will take a look on a very simplified <code>bind</code>, but the mentioned effects are similar to a complete real world implementation.</p>
 
 <pre class="numbered">
 #include &lt;type_traits&gt;
@@ -251,13 +251,13 @@ int main(){
 
 <p>The <code>__bind</code> function operators are implemented via <code>invoke</code> and both overloads, the non-<code>const</code> and the <code>const</code> one, have an explicit return type declaration.</p>
 
-<p>The call <code>foo()</code> will invoke the non-<code>const</code> overload of <code>__bind</code>, but it will also instantiate the <code>const</code> overload. If the return type is declared explicitly, as it is here, the return type is also instantiated. This in turn instantiates the explicit declared return type of <code>invoke</code>. The <code>invoke</code> call by the non-<code>const</code> overload is wellformed. But the call of the <code>const</code> overload will trigger the <code>static_assert</code>, if the function body of the function operator of <code>Foo</code> is instantited.</p>
+<p>The call <code>foo()</code> will invoke the non-<code>const</code> overload of <code>__bind</code>, but it will also instantiate the <code>const</code> overload. If the return type is declared explicitly, as it is here, the return type is also instantiated. This in turn instantiates the explicit declared return type of <code>invoke</code>. The <code>invoke</code> call by the non-<code>const</code> overload is well-formed. But the call of the <code>const</code> overload will trigger the <code>static_assert</code>, if the function body of the function operator of <code>Foo</code> is instantiated.</p>
 
-<p>If neighter <code>invoke</code> nor the function operator of <code>Foo</code> are declared <code>constexpr</code>, the function body must not be instantited and the code is well formed.</p>
+<p>If neither <code>invoke</code> nor the function operator of <code>Foo</code> are declared <code>constexpr</code>, the function body must not be instantiated and the code is well formed.</p>
 
-<p>If <code>Foo</code>'s function operator is declared <code>constexpr</code>, the return type declaration of <code>invoke</code> does call <code>Foo</code>'s function operator in an unevaluated context. Now it depends on wheater a <code>constexpr</code> function body is instantiated in unevaluated context, if yes, the code is ill-formed.</p>
+<p>If <code>Foo</code>'s function operator is declared <code>constexpr</code>, the return type declaration of <code>invoke</code> does call <code>Foo</code>'s function operator in an unevaluated context. Now it depends on whether a <code>constexpr</code> function body is instantiated in unevaluated context, if yes, the code is ill-formed.</p>
 
-Otherwise, if <code>invoke</code> is declared <code>constexpr</code>, the return type invocation will not instantiate <code>Foo</code>'s function operator, since it is not <code>constexpr</code> itself. But <code>invoke</code>'s function body may be instantiated and it does invoke <code>Foo</code>'s function operator in an evaluated context, which in turn will instantiate it's function body and trigger the <code>static_assert</code> as well.</p>
+Otherwise, if <code>invoke</code> is declared <code>constexpr</code>, the return type invocation will not instantiate <code>Foo</code>'s function operator, since it isn't <code>constexpr</code> itself. But <code>invoke</code>'s function body may be instantiated and it does invoke <code>Foo</code>'s function operator in an evaluated context, which in turn will instantiate its function body and trigger the <code>static_assert</code> as well.</p>
 
 <p>The GCC-Compiler does not instantiate the <code>constexpr</code> function body in unevaluated context if it is not in an <code>constexpr</code> context. If you declare all functions and the variable <code>foo</code> in the example <code>constexpr</code>, it will trigger the <code>static_assert</code> as well.</p>
 
@@ -269,11 +269,11 @@ Otherwise, if <code>invoke</code> is declared <code>constexpr</code>, the return
 
 <p>If you make all functions <code>constexpr</code>, but not <code>foo</code>, the code is compiled by GCC and LLVM, since also the LLVM-Compiler does not instantiate the function body of the unused <code>const</code>-overload.</p>
 
-<p>This will keep all existing code which use <code>std::bind</code> unbroken. Of course, existing user code which is simmilar as in <code>__bind</code> will break. But it can simply be fixed in the same way.</p>
+<p>This will keep all existing code which use <code>std::bind</code> unbroken. Of course, existing user code which is similar as in <code>__bind</code> will break. But it can simply be fixed in the same way.</p>
 
 <h3>3.3 How to fix new code?</h3>
 
-<p>Once <code>invoke</code>- and the <code>bind</code>-functions are declared <code>constexpr</code>, you may want to make <code>foo</code> also a <code>constexpr</code> variable. This will bring us back to our old problem and this time it can not be fixed by changing <code>invoke</code> or <code>bind</code>.</p>
+<p>Once <code>invoke</code>- and the <code>bind</code>-functions are declared <code>constexpr</code>, you may want to make <code>foo</code> also a <code>constexpr</code> variable. This will bring us back to our old problem and this time it cannot be fixed by changing <code>invoke</code> or <code>bind</code>.</p>
 
 <p>We have to fix it on the user side, so in the definition of <code>Foo</code>, by defining a non-<code>const</code> overload of the function operator:</p>
 
