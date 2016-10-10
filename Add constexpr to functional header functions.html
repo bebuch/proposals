@@ -91,6 +91,7 @@ span.para{
 
 span.keyword{
   font-weight:bold;
+  color:black;
 }
 
 span.type{
@@ -263,19 +264,13 @@ Otherwise, if <code>invoke</code> is declared <code>constexpr</code>, the return
 
 <p>The LLVM-Compiler does instantiate <code>constexpr</code> functions eagerly and triggers the <code>static_assert</code> even if <code>foo</code> is not <code>constexpr</code>.</p>
 
-<h3>3.2 How to fix existing code?</h3>
+<h3>3.2 How to fix?</h3>
 
 <p>As long as <code>__bind</code>'s function operator overloads are not <code>constexpr</code> itself, the problem is the instantiation of the explicitly declared return type of the <code>const</code>-overload. Making the return type implicit (by removing the <code>decltype</code> line) will fix it.</p>
 
 <p>If you make all functions <code>constexpr</code>, but not <code>foo</code>, the code is compiled by GCC and LLVM, since also the LLVM-Compiler does not instantiate the function body of the unused <code>const</code>-overload.</p>
 
 <p>This will keep all existing code which use <code>std::bind</code> unbroken. Of course, existing user code which is similar as in <code>__bind</code> will break. But it can simply be fixed in the same way.</p>
-
-<h3>3.3 How to fix new code?</h3>
-
-<p>Once <code>invoke</code>- and the <code>bind</code>-functions are declared <code>constexpr</code>, you may want to make <code>foo</code> also a <code>constexpr</code> variable. This will bring us back to our old problem and this time it cannot be fixed by changing <code>invoke</code> or <code>bind</code>.</p>
-
-<p>We have to fix it on the user side, so in the definition of <code>Foo</code>, by defining a non-<code>const</code> overload of the function operator:</p>
 
 
 <pre class="numbered">
@@ -312,20 +307,12 @@ struct Foo{
         static_assert(std::is_same&lt;U, int&amp;&gt;::value, "");
         return 0;
     }
-
-    template&lt;class U&gt;
-    constexpr int operator()(U&amp;&amp;)const{
-        static_assert(std::is_same&lt;U, int const&amp;&gt;::value, "");
-        return 0;
-    }
 };
 
 int main(){
-    constexpr auto foo = bind(Foo(), 42);
-    auto a = foo();
+    // no foo object, a constexpr variable is const which is not supported by Foo
 
-    constexpr auto const bar = bind(Foo(), 42);
-    auto b = bar();
+    constexpr auto bar = bind(Foo(), 42)();
 }</pre>
 
 <h2><a name="wording">4 Proposed Wording</a></h2>
