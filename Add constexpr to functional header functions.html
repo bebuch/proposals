@@ -502,7 +502,11 @@ template&lt;class R, class T&gt; <ins>constexpr </ins><i>unspecified</i> mem_fn(
 <pre>template&lt;class R, class T&gt; <ins>constexpr </ins><i>unspecified</i> mem_fn(R T::* pm) noexcept;</pre>
 </blockquote>
 
-<h2><a name="literature">5. References</a></h2>
+<h2><a name="alternatives">5. Alternatives</a></h2>
+
+Alternatively we can keep the functions as they are and redefine them with <code>constexpr</code> in <code>namespace std2</code>.
+
+<h2><a name="literature">6. References</a></h2>
 
 <ol>
 <li>Richard Smith, "Working Draft, Standard for Programming Language C++" (N4606, <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf">http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/n4606.pdf</a>)</li>
